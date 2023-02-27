@@ -24,7 +24,7 @@ class LengthRegulator(nn.Cell):
 
         output = pad(output, max_len)
 
-        return output, np.stack(mel_len)
+        return output, ms.Tensor(np.stack(mel_len))
 
     def expand(self, batch, predicted):
         out = batch.repeat(predicted.asnumpy().astype(np.int32).tolist(), 0)
@@ -184,9 +184,10 @@ class VarianceAdaptor(nn.Cell):
             x, mel_len = self.length_regulator(x, duration_target, max_len)
             duration_rounded = duration_target
         else:
-            duration_rounded = ms.ops.clip(
-                (ms.ops.round(ms.ops.exp(log_duration_prediction) - 1) * d_control),
-                0, None
+            T = (ms.ops.round(ms.ops.exp(log_duration_prediction) - 1) * d_control)
+            duration_rounded = ms.ops.clip_by_value(
+                T,
+                ms.Tensor(0), None
             )
             x, mel_len = self.length_regulator(x, duration_rounded, max_len)
             mel_mask = get_mask_from_lengths(mel_len)

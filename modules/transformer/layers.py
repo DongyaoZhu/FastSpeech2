@@ -22,9 +22,7 @@ class FFTBlock(nn.Cell):
 
     def construct(self, enc_input, non_pad_mask=None, slf_attn_mask=None):
         enc_output = self.slf_attn(enc_input, enc_input, enc_input, mask=slf_attn_mask)
-        # print('enc_output 1:', enc_output[0])
         enc_output *= non_pad_mask
-        # print('enc_output 2:', enc_output[0])
 
         enc_output = self.pos_ffn(enc_output)
         enc_output *= non_pad_mask

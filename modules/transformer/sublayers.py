@@ -52,7 +52,7 @@ class MultiHeadAttention(nn.Cell):
             weight_init=initializer(Normal(), [n_head * d_v, d_model], mstype.float32)
         )
 
-        self.attention = ScaledDotProductAttention(temperature=np.power(d_k, 0.5))
+        self.attention = ScaledDotProductAttention(temperature=np.power(d_k, 0.5), attn_dropout=dropout)
         self.layer_norm = nn.LayerNorm([d_model])
         self.dropout = nn.Dropout(keep_prob=1-dropout)
 
@@ -77,17 +77,15 @@ class MultiHeadAttention(nn.Cell):
         k = self.reshape(self.transpose(k, (2, 0, 1, 3)), (-1, len_q, d_k))  # (n*b) x lk x dk
         v = self.reshape(self.transpose(v, (2, 0, 1, 3)), (-1, len_v, d_v))  # (n*b) x lv x dv
 
-        mask = self.tile(mask.astype(mstype.float32), (n_head, 1, 1))
-        output = self.attention(q, k, v, mask=mask.astype(mstype.bool_))
-        # print('mask:', mask.shape, 'q:', q.shape)
-        # print('attn:', output[0][:1])
+        # mask = self.tile(mask.astype(mstype.float32), (n_head, 1, 1))
+        # output = self.attention(q, k, v, mask=mask.astype(mstype.bool_))
+        output = self.attention(q, k, v, mask=mask)
 
         output = self.reshape(output, (n_head, sz_b, len_q, d_v))
         output = self.reshape(self.transpose(output, (1, 2, 0, 3)), (sz_b, len_q, -1))  # b x lq x (n*dv)
         output = self.fc(output)
         # output = self.dropout(self.fc(output))
-        output = (output + residual)
-        # output = self.layer_norm(output + residual)
+        output = self.layer_norm(output + residual)
 
         return output
 

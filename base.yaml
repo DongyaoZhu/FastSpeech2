@@ -1,6 +1,6 @@
 
 # Training params
-num_epochs: 100
+num_epochs: 1
 batch_size: 32
 learning_rate: 0.001
 beta1: 0.9
@@ -9,7 +9,7 @@ eps: 0.000000001
 
 max_grad_norm: 1.0
 
-save_step: 50000
+save_step: 405
 save_dir: '.'
 
 # Data params

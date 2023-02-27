@@ -81,4 +81,5 @@ class LJSpeechTTS():
         return audio_path, trans_path
 
     def __len__(self):
-        return len(self.bins)
+        return int(32 * 2)
+        # return len(self.bins)

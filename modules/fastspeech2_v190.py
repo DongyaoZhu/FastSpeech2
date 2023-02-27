@@ -46,6 +46,8 @@ class FastSpeech2(nn.Cell):
         texts,
         src_lens,
         max_src_len,
+        positions_encoder=None,
+        positions_decoder=None,
         mel_lens=None,
         max_mel_len=None,
         p_targets=None,
@@ -57,19 +59,16 @@ class FastSpeech2(nn.Cell):
     ):
         src_masks = get_mask_from_lengths(src_lens, max_src_len)
         mel_masks = get_mask_from_lengths(mel_lens, max_mel_len) if mel_lens is not None else None
-
-        output = self.encoder(texts, src_masks)
+        output = self.encoder(texts, src_masks, positions_encoder)
 
         if self.speaker_emb is not None:
-            output = output + self.speaker_emb(speakers).unsqueeze(1).expand(
-                -1, max_src_len, -1
-            )
+            output = output + self.speaker_emb(speakers).unsqueeze(1).expand(-1, max_src_len, -1)
 
         yh = self.variance_adaptor(
             x=output,
             src_mask=src_masks,
             mel_mask=mel_masks,
-            max_len=int(max_mel_len.asnumpy()),
+            max_len=None if max_mel_len is None else int(max_mel_len.asnumpy()),
             pitch_target=p_targets,
             energy_target=e_targets,
             duration_target=d_targets,
@@ -77,7 +76,7 @@ class FastSpeech2(nn.Cell):
             e_control=e_control,
             d_control=d_control,
         )
-        output, mel_masks = self.decoder(yh['output'], yh['mel_masks'])
+        output, mel_masks = self.decoder(yh['output'], yh['mel_masks'], positions_decoder)
         output = self.mel_linear(output)
         yh.update({
             'mel_predictions': output,
@@ -103,6 +102,8 @@ class FastSpeech2WithLoss(FastSpeech2):
         texts,
         src_lens,
         max_src_len,
+        positions_encoder,
+        positions_decoder,
         mels,
         mel_lens,
         max_mel_len,
@@ -115,6 +116,8 @@ class FastSpeech2WithLoss(FastSpeech2):
             texts=texts,
             src_lens=src_lens,
             max_src_len=max_src_len,
+            positions_encoder=positions_encoder,
+            positions_decoder=positions_decoder,
             mel_lens=mel_lens,
             max_mel_len=max_mel_len,
             p_targets=p_targets,
@@ -127,20 +130,39 @@ class FastSpeech2WithLoss(FastSpeech2):
             'energy_targets': e_targets,
             'duration_targets': d_targets,
         })
-        # return self.loss_fn(yh)
         return self.scale.scale(self.loss_fn(yh))
 
 
 if __name__ == '__main__':
-    ms.context.set_context(mode=ms.context.GRAPH_MODE)
-    # ms.context.set_context(mode=ms.context.PYNATIVE_MODE)
+    from time import time
+    # ms.context.set_context(device_target='GPU', device_id=0, mode=ms.context.GRAPH_MODE)
+    ms.context.set_context(device_target='GPU', device_id=0, mode=ms.context.PYNATIVE_MODE)
+    args = [
+        ms.Tensor(np.load('../speakers.npy')),
+        ms.Tensor(np.load('../texts.npy')),
+        ms.Tensor(np.load('../src_lens.npy')),
+        ms.Tensor(np.load('../max_src_len.npy')),
+        # ms.Tensor(np.load('../mels.npy')),
+        ms.Tensor(np.load('../mel_lens.npy')),
+        ms.Tensor(np.load('../max_mel_len.npy')),
+        ms.Tensor(np.load('../p_targets.npy')),
+        ms.Tensor(np.load('../e_targets.npy')),
+        ms.Tensor(np.load('../d_targets.npy')),
+    ]
+    print('batch:', args[1].shape)
 
-    b, c, t = 2, 128, 7200
-    x = np.random.random([b, t]).astype(np.float32)
-    s = np.random.random([b, ]).astype(np.float32)
-    n = np.random.random([b, t]).astype(np.float32)
-    c = np.random.random([b, c, t // 300]).astype(np.float32)
+    import yaml
+    preprocess_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/preprocess.yaml'
+    model_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/model.yaml'
+    train_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/train.yaml'
+    preprocess_config = yaml.load(open(preprocess_config, "r"), Loader=yaml.FullLoader)
+    model_config = yaml.load(open(model_config, "r"), Loader=yaml.FullLoader)
 
-    net = FastSpeech2WithLoss(1)
-    y = net(ms.Tensor(x), ms.Tensor(s), ms.Tensor(n), ms.Tensor(c))
-    print('y:', y.shape)
+    net = FastSpeech2(preprocess_config, model_config)
+    for i in range(2):
+        t = time()
+        y = net(*args)
+        t = time() - t
+        print('time: %.2fs' % t)
+        for k, v in y:
+            print(k, ':', v.shape)

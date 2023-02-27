@@ -9,7 +9,7 @@ class ScaledDotProductAttention(nn.Cell):
     """
     Scaled Dot-Product Attention.
     """
-    def __init__(self, temperature, attn_dropout=0.1):
+    def __init__(self, temperature, attn_dropout=0.0):
         super().__init__()
         self.temperature = temperature
 

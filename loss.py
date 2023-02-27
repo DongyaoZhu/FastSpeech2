@@ -30,7 +30,6 @@ class FastSpeech2Loss(nn.Cell):
         mel_masks = ~mel_masks
         log_duration_targets = ms.ops.log(duration_targets + 1.)
         mel_targets = mel_targets[:, : mel_masks.shape[1], :]
-        mel_masks = mel_masks[:, :mel_masks.shape[1]]
 
         if self.pitch_feature_level == "phoneme_level":
             pitch_predictions = pitch_predictions * src_masks

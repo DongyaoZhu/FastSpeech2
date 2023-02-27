@@ -5,6 +5,9 @@ import mindspore as ms
 
 from ljspeech import LJSpeechTTS
 from text import text_to_sequence
+from utils import get_sinusoid_encoding_table
+from tts_dataset import DistributedSampler, create_base_dataset
+
 
 WAV_DIR = 'wavs'
 MEL_DIR = '../../ptFastSpeech2/preprocessed_data/LJSpeech_paper/mel'
@@ -18,43 +21,9 @@ ENERGY_POSTFIX = 'LJSpeech-energy-' # '_e_fs2.npy'
 PITCH_POSTFIX = 'LJSpeech-pitch-' # '_p_fs2.npy'
 DURATION_POSTFIX = 'LJSpeech-duration-' # '_d_fs2.npy'
 
-
-class DistributedSampler:
-    def __init__(self, dataset, rank, group_size, shuffle=True, seed=0):
-        self.rank = rank
-        self.group_size = group_size
-        self.dataset_len = len(dataset)
-        self.shuffle = shuffle
-        self.seed = seed
-
-    def __iter__(self):
-        if self.shuffle:
-            self.seed = (self.seed + 1) & 0xFFFFFFFF
-            np.random.seed(self.seed)
-            indices = np.random.permutation(self.dataset_len)
-        else:
-            indices = np.arange(self.dataset_len)
-        indices = indices[self.rank::self.group_size]
-        return iter(indices)
-
-    def __len__(self):
-        return self.dataset_len
-
-
-def create_base_dataset(
-    ds,
-    rank: int = 0,
-    group_size: int = 1,
-):
-    input_columns = ["audio", "text"]
-    sampler = DistributedSampler(ds, rank, group_size, shuffle=True)
-    ds = ms.dataset.GeneratorDataset(
-        ds,
-        column_names=input_columns,
-        sampler=sampler
-    )
-    return ds
-
+len_max_seq = 1000
+d_word_vec = 256
+positional_embeddings = get_sinusoid_encoding_table(len_max_seq + 1, d_word_vec, padding_idx=None)
 
 from hparams import hps
 
@@ -111,6 +80,8 @@ def create_dataset(data_path, manifest_path, batch_size, is_train=True, rank=0, 
         'texts',
         'src_lens',
         'max_src_len',
+        'positions_encoder',
+        'positions_decoder',
         'mels',
         'mel_lens',
         'max_mel_len',
@@ -136,11 +107,17 @@ def create_dataset(data_path, manifest_path, batch_size, is_train=True, rank=0, 
         energy, _, _ = pad_to_max(energy)
         duration, _, _ = pad_to_max(duration)
         speakers = np.zeros(len(phonemes), np.float32)
+        positions_encoder = positional_embeddings[None, : max_src_len].repeat(len(phonemes), 0)
+        max_duration = duration.sum(-1).max().astype(np.int32)
+        positions_decoder = positional_embeddings[None, : max_duration].repeat(len(phonemes), 0)
+        # print('dur:', max_duration, 'mel:', mels.shape, 'maxmel:', max_mel_len)
         return (
             speakers,
             phonemes,
             src_lens,
             max_src_len,
+            positions_encoder,
+            positions_decoder,
             mels,
             mel_lens,
             max_mel_len,
@@ -148,7 +125,6 @@ def create_dataset(data_path, manifest_path, batch_size, is_train=True, rank=0, 
             energy,
             duration.astype(np.int32),
         )
-    # '''
     ds = ds.batch(
         batch_size, 
         per_batch_map=batch_collate,
@@ -159,7 +135,6 @@ def create_dataset(data_path, manifest_path, batch_size, is_train=True, rank=0, 
         python_multiprocessing=False,
         num_parallel_workers=8
     )
-    # '''
 
     return ds
 

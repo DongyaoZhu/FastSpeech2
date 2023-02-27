@@ -9,6 +9,7 @@ from mindspore.communication import init
 from mindspore.amp import all_finite
 from mindspore import SummaryCollector
 
+from time import time
 import argparse
 import yaml
 import ast
@@ -52,6 +53,7 @@ class MyTrainOneStepCell(nn.TrainOneStepCell):
         super().__init__(network, optimizer, sens)
         self.grad_clip = grad_clip
         self.max_grad_norm = max_grad_norm
+        # self.t = time()
 
     def construct(self, *args):
         losses, grads = ops.value_and_grad(self.network, weights=self.weights, has_aux=True)(*args)
@@ -68,7 +70,9 @@ class MyTrainOneStepCell(nn.TrainOneStepCell):
         if not overflow:
             self.optimizer(grads)
 
-        return losses, overflow
+        # t2 = self.t
+        # self.t = time()
+        return losses, overflow#, self.t - t2
 
 
 class SaveCallBack(Callback):
@@ -92,12 +96,19 @@ class SaveCallBack(Callback):
         self.is_openi = is_openi
         self.train_url = train_url
         os.makedirs(save_dir, exist_ok=True)
+        self.t = time()
 
     def step_end(self, run_context):
         cb_params = run_context.original_args()
+        # losses, overflow, dt = cb_params.net_outputs
         losses, overflow = cb_params.net_outputs
+        t2 = self.t
+        self.t = time()
+        dt = self.t - t2
+
         info = '[epoch] %d' % cb_params.cur_epoch_num
         info += ' [step] %d' % cb_params.cur_step_num
+        info += ' [step time] %.2fs' % dt
         info += ' [overflow] %s' % overflow
         for name, loss in zip(cb_params.train_network.network.loss_fn.names, losses):
             info += ' [%s] %.2f' % (name, loss)
@@ -113,12 +124,13 @@ class SaveCallBack(Callback):
             if self.is_openi:
                 os.makedirs(cp, exist_ok=True)
                 name = os.path.join(cp, name)
-            ms.save_checkpoint(module, name + '_%d.ckpt' % cur_step, append_dict={'cur_step': cur_step})
+            ms.save_checkpoint(module, name + '_%d.ckpt' % cur_step, append_dict={'cur_step': 160000})
         if self.is_openi:
             move_from_to(cp, self.train_url)
 
 
 def main():
+    profiler = ms.Profiler(output_path='./')
     args = parse_args()
     if args.is_openi:
         move_from_to(args.data_url, '.')
@@ -139,9 +151,7 @@ def main():
     args.preprocess_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/preprocess.yaml'
     args.model_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/model.yaml'
     args.train_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/train.yaml'
-    preprocess_config = yaml.load(
-        open(args.preprocess_config, "r"), Loader=yaml.FullLoader
-    )
+    preprocess_config = yaml.load(open(args.preprocess_config, "r"), Loader=yaml.FullLoader)
     model_config = yaml.load(open(args.model_config, "r"), Loader=yaml.FullLoader)
     train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
     model = FastSpeech2WithLoss(FastSpeech2Loss(preprocess_config), preprocess_config, model_config)
@@ -245,7 +255,7 @@ def main():
     model = ms.Model(network=network)
     model.train(1, ds, dataset_sink_mode=False, callbacks=callbacks)
     # model.train(num_epochs, ds, dataset_sink_mode=False, callbacks=callbacks, initial_epoch=global_step // ds.get_dataset_size())
-
+    profiler.analyse()
 
 if __name__ == '__main__':
     main()
