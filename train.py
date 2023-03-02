@@ -148,47 +148,7 @@ def main():
     np.random.seed(0)
     ms.set_seed(0)
 
-    args.preprocess_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/preprocess.yaml'
-    args.model_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/model.yaml'
-    args.train_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/train.yaml'
-    preprocess_config = yaml.load(open(args.preprocess_config, "r"), Loader=yaml.FullLoader)
-    model_config = yaml.load(open(args.model_config, "r"), Loader=yaml.FullLoader)
-    train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
-    model = FastSpeech2WithLoss(FastSpeech2Loss(preprocess_config), preprocess_config, model_config)
-    # with open('ms.txt', 'w') as file:
-    #     for p in model.trainable_params():
-    #         file.write('%s %s\n' % (p.name, str(p.shape)))
-    if 0:
-        B1, B2 = 14, 15
-        speakers = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/speakers.npy')[B1:B2])
-        texts = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/texts.npy')[B1:B2])
-        src_lens = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/src_lens.npy')[B1:B2])
-        max_src_len = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/max_src_len.npy'))
-        mels = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/mels.npy')[B1:B2])
-        mel_lens = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/mel_lens.npy')[B1:B2])
-        max_mel_len = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/max_mel_len.npy'))
-        p_targets = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/p_targets.npy')[B1:B2])
-        e_targets = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/e_targets.npy')[B1:B2])
-        d_targets = ms.Tensor(np.load('/home/zhudongyao/FastSpeech2/d_targets.npy')[B1:B2])
-    
-        def gen():
-            for i in range(5):
-                t = (
-                    speakers,
-                    texts,
-                    src_lens,
-                    max_src_len,
-                    mels,
-                    mel_lens,
-                    max_mel_len,
-                    (p_targets - 300.) / 300,
-                    (e_targets - 30.) / 30,
-                    d_targets
-                )
-                yield t
-
-        source = list(gen())
-        ds = ms.dataset.GeneratorDataset(source, num_shards=group, shard_id=0, column_names=cn)
+    model = FastSpeech2WithLoss(FastSpeech2Loss(hps), hps)
 
     ds = create_dataset(
         data_path=hps.data_path,
@@ -253,8 +213,7 @@ def main():
         callbacks.append(summary_collector)
 
     model = ms.Model(network=network)
-    model.train(1, ds, dataset_sink_mode=False, callbacks=callbacks)
-    # model.train(num_epochs, ds, dataset_sink_mode=False, callbacks=callbacks, initial_epoch=global_step // ds.get_dataset_size())
+    model.train(num_epochs, ds, dataset_sink_mode=False, callbacks=callbacks, initial_epoch=global_step // ds.get_dataset_size())
     profiler.analyse()
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-import numpy as np
+
 from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import nn
@@ -11,20 +11,20 @@ from utils import get_sinusoid_encoding_table
 
 
 class Encoder(nn.Cell):
-    def __init__(self, config):
+    def __init__(self, hps):
         super().__init__()
 
         n_src_vocab = len(all_symbols) + 1
-        len_max_seq = config["max_seq_len"]
-        d_word_vec = config["transformer"]["encoder_hidden"]
-        n_layers = config["transformer"]["encoder_layer"]
-        n_head = config["transformer"]["encoder_head"]
-        d_k = config["transformer"]["encoder_hidden"] // config["transformer"]["encoder_head"]
-        d_v = config["transformer"]["encoder_hidden"] // config["transformer"]["encoder_head"]
-        d_model = config["transformer"]["encoder_hidden"]
-        d_inner = config["transformer"]["conv_filter_size"]
-        kernel_size = config["transformer"]["conv_kernel_size"]
-        dropout = config["transformer"]["encoder_dropout"]
+        len_max_seq = hps.model.max_seq_len
+        d_word_vec = hps.model.transformer.encoder_hidden
+        n_layers = hps.model.transformer.encoder_layer
+        n_head = hps.model.transformer.encoder_head
+        d_k = hps.model.transformer.encoder_hidden // hps.model.transformer.encoder_head
+        d_v = hps.model.transformer.encoder_hidden // hps.model.transformer.encoder_head
+        d_model = hps.model.transformer.encoder_hidden
+        d_inner = hps.model.transformer.conv_filter_size
+        kernel_size = hps.model.transformer.conv_kernel_size
+        dropout = hps.model.transformer.encoder_dropout
 
         n_position = len_max_seq + 1
         pretrained_embs = get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=None)
@@ -71,20 +71,20 @@ class Encoder(nn.Cell):
 
 
 class Decoder(nn.Cell):
-    def __init__(self, config):
+    def __init__(self, hps):
         super().__init__()
-        n_position = config["max_seq_len"] + 1
-        n_layers = config["transformer"]["decoder_layer"]
-        n_head = config["transformer"]["decoder_head"]
-        d_k = config["transformer"]["decoder_hidden"] // config["transformer"]["decoder_head"]
-        d_v = config["transformer"]["decoder_hidden"] // config["transformer"]["decoder_head"]
-        d_model = config["transformer"]["decoder_hidden"]
-        d_inner = config["transformer"]["conv_filter_size"]
-        kernel_size = config["transformer"]["conv_kernel_size"]
-        dropout = config["transformer"]["decoder_dropout"]
+        n_position = hps.model.max_seq_len + 1
+        n_layers = hps.model.transformer.decoder_layer
+        n_head = hps.model.transformer.decoder_head
+        d_k = hps.model.transformer.decoder_hidden // hps.model.transformer.decoder_head
+        d_v = hps.model.transformer.decoder_hidden // hps.model.transformer.decoder_head
+        d_model = hps.model.transformer.decoder_hidden
+        d_inner = hps.model.transformer.conv_filter_size
+        kernel_size = hps.model.transformer.conv_kernel_size
+        dropout = hps.model.transformer.decoder_dropout
 
-        len_max_seq = config["max_seq_len"]
-        self.max_seq_len = config["max_seq_len"]
+        len_max_seq = hps.model.max_seq_len
+        self.max_seq_len = hps.model.max_seq_len
 
         n_position = len_max_seq + 1
         pretrained_embs = get_sinusoid_encoding_table(n_position, d_model, padding_idx=None)

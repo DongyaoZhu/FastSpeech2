@@ -37,14 +37,14 @@ class LengthRegulator(nn.Cell):
 
 
 class VariancePredictor(nn.Cell):
-    def __init__(self, model_config):
+    def __init__(self, hps):
         super().__init__()
 
-        self.input_size = model_config["transformer"]["encoder_hidden"]
-        self.filter_size = model_config["variance_predictor"]["filter_size"]
-        self.kernel = model_config["variance_predictor"]["kernel_size"]
-        self.conv_output_size = model_config["variance_predictor"]["filter_size"]
-        self.dropout = model_config["variance_predictor"]["dropout"]
+        self.input_size = hps.model.transformer.encoder_hidden
+        self.filter_size = hps.model.variance_predictor.filter_size
+        self.kernel = hps.model.variance_predictor.kernel_size
+        self.conv_output_size = hps.model.variance_predictor.filter_size
+        self.dropout = hps.model.variance_predictor.dropout
 
         self.conv1 = nn.SequentialCell(
             nn.Conv1d(self.input_size, self.filter_size, self.kernel, has_bias=True, pad_mode='same'),
@@ -80,30 +80,24 @@ class VariancePredictor(nn.Cell):
 
 
 class VarianceAdaptor(nn.Cell):
-    def __init__(self, preprocess_config, model_config):
+    def __init__(self, hps):
         super().__init__()
-        self.duration_predictor = VariancePredictor(model_config)
+        self.duration_predictor = VariancePredictor(hps)
         self.length_regulator = LengthRegulator()
-        self.pitch_predictor = VariancePredictor(model_config)
-        self.energy_predictor = VariancePredictor(model_config)
+        self.pitch_predictor = VariancePredictor(hps)
+        self.energy_predictor = VariancePredictor(hps)
+        self.pitch_feature_level = hps.pitch.feature
+        self.energy_feature_level = hps.energy.feature
 
-        self.pitch_feature_level = preprocess_config["preprocessing"]["pitch"][
-            "feature"
-        ]
-        self.energy_feature_level = preprocess_config["preprocessing"]["energy"][
-            "feature"
-        ]
         assert self.pitch_feature_level in ["phoneme_level", "frame_level"]
         assert self.energy_feature_level in ["phoneme_level", "frame_level"]
 
-        pitch_quantization = model_config["variance_embedding"]["pitch_quantization"]
-        energy_quantization = model_config["variance_embedding"]["energy_quantization"]
-        n_bins = model_config["variance_embedding"]["n_bins"]
+        pitch_quantization = hps.model.variance_embedding.pitch_quantization
+        energy_quantization = hps.model.variance_embedding.energy_quantization
+        n_bins = hps.model.variance_embedding.n_bins
         assert pitch_quantization in ["linear", "log"]
         assert energy_quantization in ["linear", "log"]
-        with open(
-            os.path.join('../ptFastSpeech2/', preprocess_config["path"]["preprocessed_path"], "stats.json")
-        ) as f:
+        with open(os.path.join('stats.json')) as f:
             stats = json.load(f)
             pitch_min, pitch_max = stats["pitch"][:2]
             energy_min, energy_max = stats["energy"][:2]
@@ -133,8 +127,8 @@ class VarianceAdaptor(nn.Cell):
                 requires_grad=False,
             )
 
-        self.pitch_embedding = nn.Embedding(n_bins, model_config["transformer"]["encoder_hidden"])
-        self.energy_embedding = nn.Embedding(n_bins, model_config["transformer"]["encoder_hidden"])
+        self.pitch_embedding = nn.Embedding(n_bins, hps.model.transformer.encoder_hidden)
+        self.energy_embedding = nn.Embedding(n_bins, hps.model.transformer.encoder_hidden)
 
     def get_pitch_embedding(self, x, target, mask, control):
         prediction = self.pitch_predictor(x, mask) * control

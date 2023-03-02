@@ -17,7 +17,6 @@ from hparams import hps
 
 
 def read_lexicon(lex_path):
-    lex_path = '../ptFastSpeech2/' + lex_path
     lexicon = {}
     with open(lex_path) as f:
         for line in f:
@@ -29,9 +28,9 @@ def read_lexicon(lex_path):
     return lexicon
 
 
-def preprocess_english(text, preprocess_config):
+def preprocess_english(text, hps):
     text = text.rstrip(punctuation)
-    lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
+    lexicon = read_lexicon(hps.lexicon_path)
 
     g2p = G2p()
     phones = []
@@ -51,15 +50,15 @@ def preprocess_english(text, preprocess_config):
     # phones = a + 'OW1 P AH0 N sp' + b
     sequence = np.array(
         text_to_sequence(
-            phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
+            phones, ["english_cleaners"]
         )
     )
 
     return np.array(sequence)
 
 
-def preprocess_mandarin(text, preprocess_config):
-    lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
+def preprocess_mandarin(text, hps):
+    lexicon = read_lexicon(hps.lexicon_path)
 
     phones = []
     pinyins = [
@@ -79,7 +78,7 @@ def preprocess_mandarin(text, preprocess_config):
     print("Phoneme Sequence: {}".format(phones))
     sequence = np.array(
         text_to_sequence(
-            phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
+            phones, []
         )
     )
 
@@ -115,16 +114,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    args.preprocess_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/preprocess.yaml'
-    args.model_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/model.yaml'
-    args.train_config = '/home/zhudongyao/ptFastSpeech2/config/LJSpeech_paper/train.yaml'
 
-    preprocess_config = yaml.load(
-        open(args.preprocess_config, "r"), Loader=yaml.FullLoader
-    )
-    model_config = yaml.load(open(args.model_config, "r"), Loader=yaml.FullLoader)
-    model_config['transformer']['encoder_dropout'] = model_config['transformer']['decoder_dropout'] = 0.
-    train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
+    hps.model.transformer.encoder_dropout = hps.model.transformer.decoder_dropout = 0.
 
     mode = ms.context.PYNATIVE_MODE if args.context_mode == 'py' else ms.context.GRAPH_MODE
     ms.context.set_context(mode=mode, device_target=args.device_target)
@@ -136,17 +127,14 @@ def main():
     np.random.seed(0)
     ms.set_seed(0)
 
-    model = FastSpeech2(preprocess_config, model_config)
+    model = FastSpeech2(hps)
     if os.path.exists(args.restore):
         print('[info] restore model from', args.restore)
         ms.load_checkpoint(args.restore, model, strict_load=True)
 
     ids = raw_texts = [args.text[:100]]
     speakers = ms.Tensor([0])
-    if preprocess_config["preprocessing"]["text"]["language"] == "en":
-        texts = ms.Tensor([preprocess_english(args.text, preprocess_config)])
-    elif preprocess_config["preprocessing"]["text"]["language"] == "zh":
-        texts = ms.Tensor([preprocess_mandarin(args.text, preprocess_config)])
+    texts = ms.Tensor([preprocess_english(args.text, hps)])
     text_lens = ms.Tensor([len(texts[0])])
     batches = {
         'speakers': speakers,

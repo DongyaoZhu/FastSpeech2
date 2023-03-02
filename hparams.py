@@ -22,10 +22,8 @@ def load_hparams(path):
     with open(path) as stream:
         hps = yaml.load(stream, yaml.Loader)
     hps = Config(hps)
-    hps.noise_schedule = np.linspace(hps.noise_schedule_start, hps.noise_schedule_end, hps.noise_schedule_S)
     return hps
 
 
-hps = load_hparams('base.yaml')
-assert hps.dblock.init_conv_kernels * np.prod(hps.dblock.factor) == hps.hop_samples
-assert np.prod(hps.ublock.factor) == hps.hop_samples
+hps = load_hparams('fastspeech2.yaml')
+# hps = load_hparams('recipes/LJSpeech/tts/fastspeech2/fastspeech2.yaml')

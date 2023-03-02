@@ -3,9 +3,6 @@ import mindspore as ms
 import mindspore.nn as nn
 from mindspore.amp import DynamicLossScaler
 
-import os
-import json
-
 import sys
 sys.path.append('..')
 from modules.transformer.models import Encoder, Decoder
@@ -14,31 +11,13 @@ from utils import get_mask_from_lengths
 
 
 class FastSpeech2(nn.Cell):
-    def __init__(self, preprocess_config, model_config):
+    def __init__(self, hps):
         super().__init__()
-        self.model_config = model_config
-
-        self.encoder = Encoder(model_config)
-        self.variance_adaptor = VarianceAdaptor(preprocess_config, model_config)
-        self.decoder = Decoder(model_config)
-        self.mel_linear = nn.Dense(
-            model_config["transformer"]["decoder_hidden"],
-            preprocess_config["preprocessing"]["mel"]["n_mel_channels"],
-        )
-
+        self.encoder = Encoder(hps)
+        self.variance_adaptor = VarianceAdaptor(hps)
+        self.decoder = Decoder(hps)
+        self.mel_linear = nn.Dense(hps.model.transformer.decoder_hidden, hps.n_mels)
         self.speaker_emb = None
-        if model_config["multi_speaker"]:
-            with open(
-                os.path.join(
-                    preprocess_config["path"]["preprocessed_path"], "speakers.json"
-                ),
-                "r",
-            ) as f:
-                n_speaker = len(json.load(f))
-            self.speaker_emb = nn.Embedding(
-                n_speaker,
-                model_config["transformer"]["encoder_hidden"],
-            )
 
     def forward(
         self,

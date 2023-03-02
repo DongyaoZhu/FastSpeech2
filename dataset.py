@@ -4,7 +4,6 @@ from multiprocessing import cpu_count
 import mindspore as ms
 
 from ljspeech import LJSpeechTTS
-from text import text_to_sequence
 from utils import get_sinusoid_encoding_table
 from tts_dataset import create_base_dataset
 
@@ -75,9 +74,6 @@ def create_dataset(data_path, manifest_path, batch_size, is_train=True, rank=0, 
         filename = str(filename).replace('b\'', '').replace('\'', '')
         base = filename[filename.rfind('/')+1: ].replace('.wav', '')
 
-        # with open(os.path.join(data_path, all_dirs['phoneme'], base + all_postfix['phoneme']), 'r') as reader:
-        #     _, _, phonemes, _ = reader.readline().strip('\n').split('|')
-        #     phonemes = np.array(text_to_sequence(phonemes, ["english_cleaners"]))
         data = []
         for key in feature_columns:
             data.append(np.load(os.path.join(data_path, all_dirs[key], base + all_postfix[key])))

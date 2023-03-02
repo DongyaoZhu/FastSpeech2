@@ -127,9 +127,8 @@ def preprocess_ljspeech(data_path, manifest_path, is_train):
         with open(os.path.join(data_path, all_dirs['phoneme'], base + '_phoneme.txt'), 'w') as writer:
             writer.write(str(x['base']) + '\n')
         for k in feature_columns:
-            # if k not in {'phoneme'}:
-                # continue
             np.save(os.path.join(data_path, all_dirs[k], base + all_postfix[k]), x[k].asnumpy())
+
 
 if __name__ == '__main__':
     import argparse
@@ -138,11 +137,11 @@ if __name__ == '__main__':
     parser.add_argument('--device_id', '-i', type=int, default=0)
     args = parser.parse_args()
     ms.context.set_context(mode=ms.context.PYNATIVE_MODE, device_target=args.device_target, device_id=args.device_id)
-    # preprocess_ljspeech(
-    #     data_path=hps.data_path,
-    #     manifest_path=hps.manifest_path,
-    #     is_train=False
-    # )
+    preprocess_ljspeech(
+        data_path=hps.data_path,
+        manifest_path=hps.manifest_path,
+        is_train=False
+    )
     preprocess_ljspeech(
         data_path=hps.data_path,
         manifest_path=hps.manifest_path,

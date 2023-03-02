@@ -1,14 +1,13 @@
-import numpy as np
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
 
 class FastSpeech2Loss(nn.Cell):
-    def __init__(self, preprocess_config):
+    def __init__(self, hps):
         super().__init__()
-        self.pitch_feature_level = preprocess_config["preprocessing"]["pitch"]["feature"]
-        self.energy_feature_level = preprocess_config["preprocessing"]["energy"]["feature"]
+        self.pitch_feature_level = hps.pitch.feature
+        self.energy_feature_level = hps.energy.feature
         self.mse_loss = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
         self.slr = ops.ScalarSummary()

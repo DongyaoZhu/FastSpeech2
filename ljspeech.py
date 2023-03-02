@@ -76,10 +76,8 @@ class LJSpeechTTS():
             self.bins = self.bins[int(0.99 * len(self.bins)): ]
 
     def __getitem__(self, index):
-        # index = 0
         audio_path, trans_path = self.bins[index]
         return audio_path, trans_path
 
     def __len__(self):
-        # return 2
         return len(self.bins)
