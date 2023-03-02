@@ -122,13 +122,19 @@ def preprocess_ljspeech(data_path, manifest_path, is_train):
     for k in feature_columns:
         os.makedirs(os.path.join(data_path, all_dirs[k]), exist_ok=True)
 
+    pitch_min = np.inf
+    pitch_max = -1
+    energy_min = np.inf
+    energy_max = -1
     for x in tqdm(it, total=ds.get_dataset_size()):
         base = str(x['base']).split('|', 1)[0]
         with open(os.path.join(data_path, all_dirs['phoneme'], base + '_phoneme.txt'), 'w') as writer:
             writer.write(str(x['base']) + '\n')
         for k in feature_columns:
             np.save(os.path.join(data_path, all_dirs[k], base + all_postfix[k]), x[k].asnumpy())
-
+        pitch_min, pitch_max = min(x['pitch'], pitch_min), max(x['pitch'], pitch_max)
+        energy_min, energy_max = min(x['energy'], energy_min), max(x['energy'], energy_max)
+    np.save('stats.npy', np.array([pitch_min, pitch_max, energy_min, energy_max]))
 
 if __name__ == '__main__':
     import argparse

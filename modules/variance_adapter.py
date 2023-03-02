@@ -97,10 +97,7 @@ class VarianceAdaptor(nn.Cell):
         n_bins = hps.model.variance_embedding.n_bins
         assert pitch_quantization in ["linear", "log"]
         assert energy_quantization in ["linear", "log"]
-        with open(os.path.join('stats.json')) as f:
-            stats = json.load(f)
-            pitch_min, pitch_max = stats["pitch"][:2]
-            energy_min, energy_max = stats["energy"][:2]
+        pitch_min, pitch_max, energy_min, energy_max = np.load('stats.npy')
 
         if pitch_quantization == "log":
             self.pitch_bins = ms.Parameter(
