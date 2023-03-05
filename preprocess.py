@@ -59,7 +59,6 @@ def get_fs2_features(audio, text):
     phoneme = "{" + " ".join(phoneme) + "}"
     base = "|".join([base, 'ljspeech', phoneme, raw_text])
     phoneme = np.array(text_to_sequence(phoneme, ["english_cleaners"]))
-    # '''
     wav, _, filename = read_wav(audio)
     wav = wav[int(hps.sample_rate * start) : int(hps.sample_rate * end)]
 
@@ -116,8 +115,9 @@ def preprocess_ljspeech(data_path, manifest_path, is_train):
             writer.write(str(x['base']) + '\n')
         for k in feature_columns:
             np.save(os.path.join(data_path, all_dirs[k], base + all_postfix[k]), x[k].asnumpy())
-        pitch_min, pitch_max = min(x['pitch'].min(), pitch_min), max(x['pitch'].max(), pitch_max)
-        energy_min, energy_max = min(x['energy'].min(), energy_min), max(x['energy'].max(), energy_max)
+        pitch, energy = x['pitch'].asnumpy(), x['energy'].asnumpy()
+        pitch_min, pitch_max = min(pitch.min(), pitch_min), max(pitch.max(), pitch_max)
+        energy_min, energy_max = min(energy.min(), energy_min), max(energy.max(), energy_max)
     np.save('stats.npy', np.array([pitch_min, pitch_max, energy_min, energy_max]))
 
 if __name__ == '__main__':

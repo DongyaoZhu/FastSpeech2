@@ -115,7 +115,9 @@ def parse_args():
 def main():
     args = parse_args()
 
-    hps.model.transformer.encoder_dropout = hps.model.transformer.decoder_dropout = 0.
+    hps.model.transformer.encoder_dropout = 0.
+    hps.model.transformer.decoder_dropout = 0.
+    hps.model.variance_predictor.dropout = 0.
 
     mode = ms.context.PYNATIVE_MODE if args.context_mode == 'py' else ms.context.GRAPH_MODE
     ms.context.set_context(mode=mode, device_target=args.device_target)
