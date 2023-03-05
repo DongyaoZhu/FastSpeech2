@@ -53,7 +53,7 @@ class MyTrainOneStepCell(nn.TrainOneStepCell):
         super().__init__(network, optimizer, sens)
         self.grad_clip = grad_clip
         self.max_grad_norm = max_grad_norm
-        # self.t = time()
+        self.t = time()
 
     def construct(self, *args):
         losses, grads = ops.value_and_grad(self.network, weights=self.weights, has_aux=True)(*args)
@@ -70,9 +70,9 @@ class MyTrainOneStepCell(nn.TrainOneStepCell):
         if not overflow:
             self.optimizer(grads)
 
-        # t2 = self.t
-        # self.t = time()
-        return losses, overflow#, self.t - t2
+        t2 = self.t
+        self.t = time()
+        return losses, overflow, self.t - t2
 
 
 class SaveCallBack(Callback):
@@ -100,11 +100,7 @@ class SaveCallBack(Callback):
 
     def step_end(self, run_context):
         cb_params = run_context.original_args()
-        # losses, overflow, dt = cb_params.net_outputs
-        losses, overflow = cb_params.net_outputs
-        t2 = self.t
-        self.t = time()
-        dt = self.t - t2
+        losses, overflow, dt = cb_params.net_outputs
 
         info = '[epoch] %d' % cb_params.cur_epoch_num
         info += ' [step] %d' % cb_params.cur_step_num
@@ -124,7 +120,7 @@ class SaveCallBack(Callback):
             if self.is_openi:
                 os.makedirs(cp, exist_ok=True)
                 name = os.path.join(cp, name)
-            ms.save_checkpoint(module, name + '_%d.ckpt' % cur_step, append_dict={'cur_step': 160000})
+            ms.save_checkpoint(module, name + '_%d.ckpt' % cur_step, append_dict={'cur_step': cur_step})
         if self.is_openi:
             move_from_to(cp, self.train_url)
 
